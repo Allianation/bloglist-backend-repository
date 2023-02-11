@@ -1,0 +1,25 @@
+{
+  "name": "bloglist-backend-repository",
+  "version": "1.0.0",
+  "description": "This project is the exercise of the Full Stack Open (Part 4)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Allianation",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "2.8.5",
+    "dotenv": "16.0.3",
+    "express": "4.18.2",
+    "mongoose": "6.9.1"
+  },
+  "devDependencies": {
+    "eslint": "8.34.0",
+    "nodemon": "2.0.20"
+  }
+}
