@@ -84,6 +84,17 @@ test("a valid blog can be added", async () => {
   expect(titles).toContain("Canonical string reduction");
 });
 
+test("likes property is missing from the request", async () => {
+  const newBlog = {
+    title: "First class tests",
+    author: "Robert C. Martin",
+    url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
+  };
+
+  const response = await api.post("/api/blogs").send(newBlog);
+  expect(response.body.likes).toBe(0);
+});
+
 afterAll(() => {
   mongoose.connection.close();
 });
