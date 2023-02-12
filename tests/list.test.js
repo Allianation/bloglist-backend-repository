@@ -51,11 +51,22 @@ const blogs = [
   },
 ];
 
-test("dummy returns one", () => {
-  const blogs = [];
+const favoriteBlog = {
+  _id: "5a422b3a1b54a676234d17f9",
+  title: "Canonical string reduction",
+  author: "Edsger W. Dijkstra",
+  url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
+  likes: 12,
+  __v: 0,
+};
 
-  const result = listHelper.dummy(blogs);
-  expect(result).toBe(1);
+describe("dummy", () => {
+  test("returns one", () => {
+    const blogs = [];
+
+    const result = listHelper.dummy(blogs);
+    expect(result).toBe(1);
+  });
 });
 
 describe("total likes", () => {
@@ -73,5 +84,12 @@ describe("total likes", () => {
   test("of a bigger list is calculated right", () => {
     const result = listHelper.totalLikes(blogs);
     expect(result).toBe(36);
+  });
+});
+
+describe("favorite blog", () => {
+  test("of a list is obtained correctly", () => {
+    const result = listHelper.favoriteBlog(blogs);
+    expect(result).toEqual(favoriteBlog);
   });
 });
