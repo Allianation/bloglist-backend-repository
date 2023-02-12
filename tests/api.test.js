@@ -23,85 +23,107 @@ const initialBLogs = [
 
 beforeEach(async () => {
   await Blog.deleteMany({});
-  let blogObject = new Blog(initialBLogs[0]);
-  await blogObject.save();
-  blogObject = new Blog(initialBLogs[1]);
-  await blogObject.save();
+
+  for (const blog of initialBLogs) {
+    const blogObject = new Blog(blog);
+    await blogObject.save();
+  }
 });
 
-test("blogs are returned as json", async () => {
-  await api
-    .get("/api/blogs")
-    .expect(200)
-    .expect("Content-Type", /application\/json/);
-});
+describe("when there is initially some notes saved", () => {
+  test("blogs are returned as json", async () => {
+    await api
+      .get("/api/blogs")
+      .expect(200)
+      .expect("Content-Type", /application\/json/);
+  });
 
-test("the first blog is about React patterns", async () => {
-  const response = await api.get("/api/blogs");
+  test("the first blog is about React patterns", async () => {
+    const response = await api.get("/api/blogs");
 
-  expect(response.body[0].title).toBe("React patterns");
-});
+    expect(response.body[0].title).toBe("React patterns");
+  });
 
-test("all blogs are returned", async () => {
-  const response = await api.get("/api/blogs");
+  test("all blogs are returned", async () => {
+    const response = await api.get("/api/blogs");
 
-  expect(response.body).toHaveLength(initialBLogs.length);
-});
+    expect(response.body).toHaveLength(initialBLogs.length);
+  });
 
-test("a specific blog is within the returned blogs", async () => {
-  const response = await api.get("/api/blogs");
+  test("a specific blog is within the returned blogs", async () => {
+    const response = await api.get("/api/blogs");
 
-  const contents = response.body.map((r) => r.title);
-  expect(contents).toContain("React patterns");
-});
+    const titles = response.body.map((r) => r.title);
+    expect(titles).toContain("React patterns");
+  });
 
-test("unique identifier property of the blog is named id", async () => {
-  const response = await api.get("/api/blogs");
-  response.body.forEach((blog) => {
-    expect(blog.id).toBeDefined();
+  test("unique identifier property of the blog is named id", async () => {
+    const response = await api.get("/api/blogs");
+    response.body.forEach((blog) => {
+      expect(blog.id).toBeDefined();
+    });
   });
 });
 
-test("a valid blog can be added", async () => {
-  const newBlog = {
-    title: "Canonical string reduction",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
-    likes: 12,
-  };
+describe("addition of a new blog", () => {
+  test("success with valid data", async () => {
+    const newBlog = {
+      title: "Canonical string reduction",
+      author: "Edsger W. Dijkstra",
+      url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
+      likes: 12,
+    };
 
-  await api
-    .post("/api/blogs")
-    .send(newBlog)
-    .expect(201)
-    .expect("Content-Type", /application\/json/);
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
 
-  const response = await api.get("/api/blogs");
+    const response = await api.get("/api/blogs");
 
-  const titles = response.body.map((r) => r.title);
+    const titles = response.body.map((r) => r.title);
 
-  expect(response.body).toHaveLength(initialBLogs.length + 1);
-  expect(titles).toContain("Canonical string reduction");
+    expect(response.body).toHaveLength(initialBLogs.length + 1);
+    expect(titles).toContain("Canonical string reduction");
+  });
+
+  test("likes property is missing from the request", async () => {
+    const newBlog = {
+      title: "First class tests",
+      author: "Robert C. Martin",
+      url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
+    };
+
+    const response = await api.post("/api/blogs").send(newBlog);
+    expect(response.body.likes).toBe(0);
+  });
+
+  test("title or url properties are missing from the request", async () => {
+    const newBlog = {
+      author: "Robert C. Martin",
+      likes: 2,
+    };
+
+    await api.post("/api/blogs").send(newBlog).expect(400);
+  });
 });
 
-test("likes property is missing from the request", async () => {
-  const newBlog = {
-    title: "First class tests",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
-  };
+describe("deletion of a blog", () => {
+  test("succeeds with status code 204 if id is valid", async () => {
+    const blogsAtStart = await api.get("/api/blogs");
+    const blogToDelete = blogsAtStart.body[0];
 
-  const response = await api.post("/api/blogs").send(newBlog);
-  expect(response.body.likes).toBe(0);
-});
+    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
 
-test("title or url properties are missing from the request", async () => {
-  const newBlog = {
-    author: "Robert C. Martin",
-    likes: 2,
-  };
+    const blogsAtEnd = await api.get("/api/blogs");
 
-  await api.post("/api/blogs").send(newBlog).expect(400);
+    expect(blogsAtEnd.body).toHaveLength(initialBLogs.length - 1);
+
+    const titles = blogsAtEnd.body.map((r) => r.title);
+
+    expect(titles).not.toContain(blogToDelete.title);
+  });
 });
 
 afterAll(() => {
