@@ -110,7 +110,7 @@ describe("addition of a new blog", () => {
 });
 
 describe("deletion of a blog", () => {
-  test("succeeds with status code 204 if id is valid", async () => {
+  test("success with status code 204 if id is valid", async () => {
     const blogsAtStart = await api.get("/api/blogs");
     const blogToDelete = blogsAtStart.body[0];
 
@@ -123,6 +123,25 @@ describe("deletion of a blog", () => {
     const titles = blogsAtEnd.body.map((r) => r.title);
 
     expect(titles).not.toContain(blogToDelete.title);
+  });
+});
+
+describe("updation of a blog", () => {
+  test("change likes success", async () => {
+    const blogsAtStart = await api.get("/api/blogs");
+
+    const blogToUpdate = {
+      title: blogsAtStart.body[0].title,
+      author: blogsAtStart.body[0].author,
+      url: blogsAtStart.body[0].url,
+      likes: 10,
+    };
+
+    await api.put(`/api/blogs/${blogsAtStart.body[0].id}`).send(blogToUpdate);
+
+    const blogsAtEnd = await api.get("/api/blogs");
+
+    expect(blogsAtEnd.body[0].likes).toBe(10);
   });
 });
 
