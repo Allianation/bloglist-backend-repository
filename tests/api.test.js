@@ -95,6 +95,15 @@ test("likes property is missing from the request", async () => {
   expect(response.body.likes).toBe(0);
 });
 
+test("title or url properties are missing from the request", async () => {
+  const newBlog = {
+    author: "Robert C. Martin",
+    likes: 2,
+  };
+
+  await api.post("/api/blogs").send(newBlog).expect(400);
+});
+
 afterAll(() => {
   mongoose.connection.close();
 });
