@@ -189,7 +189,9 @@ describe("addition of a new user", () => {
       password: "password",
     };
 
-    await api.post("/api/users").send(newUser).expect(400);
+    const response = await api.post("/api/users").send(newUser).expect(400);
+
+    expect(response.body.error).toContain("User validation failed: username: Error, expected `username` to be unique. Value: `root`");
   });
 
   test("username or password properties are missing from the request", async () => {
