@@ -181,6 +181,37 @@ describe("when there is initially one user in db", () => {
   });
 });
 
+describe("addition of a new user", () => {
+  test("username must be unique", async () => {
+    const newUser = {
+      username: "root",
+      name: "Sergio Alliana",
+      password: "password",
+    };
+
+    await api.post("/api/users").send(newUser).expect(400);
+  });
+
+  test("username or password properties are missing from the request", async () => {
+    const newUser = {
+      name: "Sergio Alliana",
+    };
+
+    await api.post("/api/users").send(newUser).expect(400);
+  });
+
+  test("username and password must be at least 3 characters long", async () => {
+    const newUser = {
+      username: "al",
+      name: "Sergio Alliana",
+      password: "pa",
+    };
+
+    await api.post("/api/users").send(newUser).expect(400);
+  });
+
+});
+
 afterAll(() => {
   mongoose.connection.close();
 });
