@@ -4,33 +4,21 @@ const app = require("../app");
 
 const api = supertest(app);
 
+const helper = require("./test_helper");
 const Blog = require("../models/blog");
-
-const initialBLogs = [
-  {
-    title: "React patterns",
-    author: "Michael Chan",
-    url: "https://reactpatterns.com/",
-    likes: 7,
-  },
-  {
-    title: "Go To Statement Considered Harmful",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html",
-    likes: 5,
-  },
-];
+const bcrypt = require("bcrypt");
+const User = require("../models/user");
 
 beforeEach(async () => {
   await Blog.deleteMany({});
 
-  for (const blog of initialBLogs) {
+  for (const blog of helper.initialBlogs) {
     const blogObject = new Blog(blog);
     await blogObject.save();
   }
 });
 
-describe("when there is initially some notes saved", () => {
+describe("when there is initially some blogs saved", () => {
   test("blogs are returned as json", async () => {
     await api
       .get("/api/blogs")
@@ -39,27 +27,27 @@ describe("when there is initially some notes saved", () => {
   });
 
   test("the first blog is about React patterns", async () => {
-    const response = await api.get("/api/blogs");
+    const response = await helper.blogsInDb();
 
-    expect(response.body[0].title).toBe("React patterns");
+    expect(response[0].title).toBe("React patterns");
   });
 
   test("all blogs are returned", async () => {
-    const response = await api.get("/api/blogs");
+    const response = await helper.blogsInDb();
 
-    expect(response.body).toHaveLength(initialBLogs.length);
+    expect(response).toHaveLength(helper.initialBlogs.length);
   });
 
   test("a specific blog is within the returned blogs", async () => {
-    const response = await api.get("/api/blogs");
+    const response = await helper.blogsInDb();
 
-    const titles = response.body.map((r) => r.title);
+    const titles = response.map((r) => r.title);
     expect(titles).toContain("React patterns");
   });
 
   test("unique identifier property of the blog is named id", async () => {
-    const response = await api.get("/api/blogs");
-    response.body.forEach((blog) => {
+    const response = await helper.blogsInDb();
+    response.forEach((blog) => {
       expect(blog.id).toBeDefined();
     });
   });
@@ -67,11 +55,14 @@ describe("when there is initially some notes saved", () => {
 
 describe("addition of a new blog", () => {
   test("success with valid data", async () => {
+    const users = await helper.usersInDb();
+
     const newBlog = {
       title: "Canonical string reduction",
       author: "Edsger W. Dijkstra",
       url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
       likes: 12,
+      userId: users[0].id,
     };
 
     await api
@@ -80,19 +71,22 @@ describe("addition of a new blog", () => {
       .expect(201)
       .expect("Content-Type", /application\/json/);
 
-    const response = await api.get("/api/blogs");
+    const response = await helper.blogsInDb();
 
-    const titles = response.body.map((r) => r.title);
+    const titles = response.map((r) => r.title);
 
-    expect(response.body).toHaveLength(initialBLogs.length + 1);
+    expect(response).toHaveLength(helper.initialBlogs.length + 1);
     expect(titles).toContain("Canonical string reduction");
   });
 
   test("likes property is missing from the request", async () => {
+    const users = await helper.usersInDb();
+
     const newBlog = {
       title: "First class tests",
       author: "Robert C. Martin",
       url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
+      userId: users[0].id,
     };
 
     const response = await api.post("/api/blogs").send(newBlog);
@@ -100,9 +94,12 @@ describe("addition of a new blog", () => {
   });
 
   test("title or url properties are missing from the request", async () => {
+    const users = await helper.usersInDb();
+
     const newBlog = {
       author: "Robert C. Martin",
       likes: 2,
+      userId: users[0].id,
     };
 
     await api.post("/api/blogs").send(newBlog).expect(400);
@@ -111,16 +108,16 @@ describe("addition of a new blog", () => {
 
 describe("deletion of a blog", () => {
   test("success with status code 204 if id is valid", async () => {
-    const blogsAtStart = await api.get("/api/blogs");
-    const blogToDelete = blogsAtStart.body[0];
+    const blogsAtStart = await helper.blogsInDb();
+    const blogToDelete = blogsAtStart[0];
 
     await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
 
-    const blogsAtEnd = await api.get("/api/blogs");
+    const blogsAtEnd = await helper.blogsInDb();
 
-    expect(blogsAtEnd.body).toHaveLength(initialBLogs.length - 1);
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length - 1);
 
-    const titles = blogsAtEnd.body.map((r) => r.title);
+    const titles = blogsAtEnd.map((r) => r.title);
 
     expect(titles).not.toContain(blogToDelete.title);
   });
@@ -128,20 +125,59 @@ describe("deletion of a blog", () => {
 
 describe("updation of a blog", () => {
   test("change likes success", async () => {
-    const blogsAtStart = await api.get("/api/blogs");
+    const blogsAtStart = await helper.blogsInDb();
 
     const blogToUpdate = {
-      title: blogsAtStart.body[0].title,
-      author: blogsAtStart.body[0].author,
-      url: blogsAtStart.body[0].url,
+      title: blogsAtStart[0].title,
+      author: blogsAtStart[0].author,
+      url: blogsAtStart[0].url,
       likes: 10,
     };
 
-    await api.put(`/api/blogs/${blogsAtStart.body[0].id}`).send(blogToUpdate);
+    await api.put(`/api/blogs/${blogsAtStart[0].id}`).send(blogToUpdate);
 
-    const blogsAtEnd = await api.get("/api/blogs");
+    const blogsAtEnd = await helper.blogsInDb();
 
-    expect(blogsAtEnd.body[0].likes).toBe(10);
+    expect(blogsAtEnd[0].likes).toBe(10);
+  });
+});
+
+describe("when there is initially one user in db", () => {
+  beforeEach(async () => {
+    await User.deleteMany({});
+
+    const passwordHash = await bcrypt.hash("sekret", 10);
+    const user = new User({ username: "root", passwordHash });
+
+    await user.save();
+  });
+
+  test("creation success with a fresh username", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      username: "allianation",
+      name: "Sergio Alliana",
+      password: "password",
+    };
+
+    await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toHaveLength(usersAtStart.length + 1);
+
+    const usernames = usersAtEnd.map((u) => u.username);
+    expect(usernames).toContain(newUser.username);
+  });
+
+  test("all users are returned", async () => {
+    const response = await helper.usersInDb();
+
+    expect(response).toHaveLength(1);
   });
 });
 
