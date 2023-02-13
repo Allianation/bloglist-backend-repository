@@ -28,7 +28,12 @@ app.use(middleware.requestLogger);
 
 app.use(middleware.tokenExtractor);
 
+// use the middleware in all routes
+// app.use(middleware.userExtractor);
+
 app.use("/api/login", loginRouter);
+// use the middleware only in /api/blogs routes
+// app.use("/api/blogs", middleware.userExtractor, blogsRouter);
 app.use("/api/blogs", blogsRouter);
 app.use("/api/users", usersRouter);
 

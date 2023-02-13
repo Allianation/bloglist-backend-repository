@@ -9,13 +9,32 @@ const Blog = require("../models/blog");
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
 
+let token;
+
 beforeEach(async () => {
+  await User.deleteMany({});
+
+  const passwordHash = await bcrypt.hash("sekret", 10);
+  const user = new User({ username: "root", passwordHash });
+
+  await user.save();
+
+  const response = await api.post("/api/login").send({
+    username: "root",
+    password: "sekret",
+  });
+
+  token = response.body.token;
+
   await Blog.deleteMany({});
 
   for (const blog of helper.initialBlogs) {
     const blogObject = new Blog(blog);
+    blogObject.user = user.id;
     await blogObject.save();
   }
+  user.blogs = helper.initialBlogs;
+  await user.save();
 });
 
 describe("when there is initially some blogs saved", () => {
@@ -67,6 +86,7 @@ describe("addition of a new blog", () => {
 
     await api
       .post("/api/blogs")
+      .set("Authorization", "bearer " + token)
       .send(newBlog)
       .expect(201)
       .expect("Content-Type", /application\/json/);
@@ -89,7 +109,10 @@ describe("addition of a new blog", () => {
       userId: users[0].id,
     };
 
-    const response = await api.post("/api/blogs").send(newBlog);
+    const response = await api
+      .post("/api/blogs")
+      .set("Authorization", "bearer " + token)
+      .send(newBlog);
     expect(response.body.likes).toBe(0);
   });
 
@@ -102,7 +125,24 @@ describe("addition of a new blog", () => {
       userId: users[0].id,
     };
 
-    await api.post("/api/blogs").send(newBlog).expect(400);
+    await api
+      .post("/api/blogs")
+      .set("Authorization", "bearer " + token)
+      .send(newBlog)
+      .expect(400);
+  });
+  test("a token is not provided", async () => {
+    const users = await helper.usersInDb();
+
+    const newBlog = {
+      title: "Canonical string reduction",
+      author: "Edsger W. Dijkstra",
+      url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
+      likes: 12,
+      userId: users[0].id,
+    };
+
+    await api.post("/api/blogs").send(newBlog).expect(401);
   });
 });
 
@@ -111,7 +151,10 @@ describe("deletion of a blog", () => {
     const blogsAtStart = await helper.blogsInDb();
     const blogToDelete = blogsAtStart[0];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set("Authorization", "bearer " + token)
+      .expect(204);
 
     const blogsAtEnd = await helper.blogsInDb();
 
@@ -143,15 +186,6 @@ describe("updation of a blog", () => {
 });
 
 describe("when there is initially one user in db", () => {
-  beforeEach(async () => {
-    await User.deleteMany({});
-
-    const passwordHash = await bcrypt.hash("sekret", 10);
-    const user = new User({ username: "root", passwordHash });
-
-    await user.save();
-  });
-
   test("creation success with a fresh username", async () => {
     const usersAtStart = await helper.usersInDb();
 
@@ -191,7 +225,9 @@ describe("addition of a new user", () => {
 
     const response = await api.post("/api/users").send(newUser).expect(400);
 
-    expect(response.body.error).toContain("User validation failed: username: Error, expected `username` to be unique. Value: `root`");
+    expect(response.body.error).toContain(
+      "User validation failed: username: Error, expected `username` to be unique. Value: `root`"
+    );
   });
 
   test("username or password properties are missing from the request", async () => {
@@ -211,7 +247,6 @@ describe("addition of a new user", () => {
 
     await api.post("/api/users").send(newUser).expect(400);
   });
-
 });
 
 afterAll(() => {
