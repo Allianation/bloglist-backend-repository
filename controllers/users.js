@@ -10,9 +10,9 @@ usersRouter.get("/", async (request, response) => {
 usersRouter.post("/", async (request, response) => {
   const body = request.body;
 
-  if (!body.password) {
+  if (!(body.username && body.password)) {
     return response.status(400).json({
-      error: "password missing",
+      error: "username or password missing",
     });
   }
 
